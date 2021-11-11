@@ -195,7 +195,7 @@ async fn handle_privmsg(
             .collect::<String>();
 
         let reply = format!(
-            "@{} {} for you: {}",
+            "@{} {}: {}",
             privmsg.sender.name,
             format_num(messages.len(), "reminder", "reminders"),
             text
