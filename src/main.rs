@@ -194,7 +194,12 @@ async fn handle_privmsg(
             .intersperse(" - ".to_string())
             .collect::<String>();
 
-        let reply = format!("{} reminders for you: {}", messages.len(), text);
+        let reply = format!(
+            "@{} {} reminders for you: {}",
+            privmsg.sender.name,
+            messages.len(),
+            text
+        );
 
         for chunk in reply
             .chars()
