@@ -195,9 +195,9 @@ async fn handle_privmsg(
             .collect::<String>();
 
         let reply = format!(
-            "@{} {} reminders for you: {}",
+            "@{} {} for you: {}",
             privmsg.sender.name,
-            messages.len(),
+            format_num(messages.len(), "reminder", "reminders"),
             text
         );
 
@@ -308,11 +308,11 @@ pub(crate) fn format_duration(duration: Duration) -> String {
     let seconds = duration.whole_seconds() - minutes * 60 - hours * 60 * 60 - days * 24 * 60 * 60;
 
     vec![
-        format_num(years, "y"),
-        format_num(days, "d"),
-        format_num(hours, "h"),
-        format_num(minutes, "m"),
-        format_num(seconds, "s"),
+        format_short_num(years, "y"),
+        format_short_num(days, "d"),
+        format_short_num(hours, "h"),
+        format_short_num(minutes, "m"),
+        format_short_num(seconds, "s"),
         "ago".to_string(),
     ]
     .into_iter()
@@ -321,9 +321,17 @@ pub(crate) fn format_duration(duration: Duration) -> String {
     .collect()
 }
 
-fn format_num(num: i64, text: &str) -> String {
+fn format_short_num(num: i64, text: &str) -> String {
     match num {
         0 => String::new(),
         x => format!("{}{}", x, text),
+    }
+}
+
+fn format_num(num: usize, singular: &str, plural: &str) -> String {
+    match num {
+        0 => String::new(),
+        1 => format!("1 {}", singular),
+        x => format!("{} {}", x, plural),
     }
 }
