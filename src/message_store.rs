@@ -131,7 +131,7 @@ impl MessageStore {
             });
     }
 
-    pub fn get_pending(&mut self, username: &str) -> HashSet<Message> {
+    pub fn pop_pending(&mut self, username: &str) -> HashSet<Message> {
         let now = OffsetDateTime::now_utc();
 
         self.data

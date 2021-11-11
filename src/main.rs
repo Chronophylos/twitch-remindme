@@ -171,7 +171,8 @@ async fn handle_privmsg(
     client: &TwitchIRCClient<SecureTCPTransport, StaticLoginCredentials>,
     privmsg: &PrivmsgMessage,
 ) -> Result<()> {
-    let messages = store.get_pending(&privmsg.sender.login);
+    let messages = store.pop_pending(&privmsg.sender.login);
+    store.save().wrap_err("Error saving store")?;
 
     handle_commands(store, client, privmsg)
         .await
