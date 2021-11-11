@@ -88,20 +88,24 @@ async fn handle_tell_command(
                 text,
             );
 
+            let respone_text = if recipient == "me" || recipient == privmsg.sender.login {
+                format!("I'll remind you the next time you write [{}]", message.id())
+            } else {
+                format!(
+                    "I'll remind {} the next time they write [{}]",
+                    recipient,
+                    message.id()
+                )
+            };
+
             info!("Storing message with id {}", message.id());
             store.insert(real_recipient, message);
             store.save().wrap_err("Error saving store")?;
 
-            let message = if recipient == "me" || recipient == privmsg.sender.login {
-                "I'll remind you the next time you write.".to_string()
-            } else {
-                format!("I'll remind {} the next time they write.", recipient)
-            };
-
             client
                 .say_in_response(
                     privmsg.channel_login.clone(),
-                    message,
+                    respone_text,
                     Some(privmsg.channel_id.clone()),
                 )
                 .await
