@@ -65,7 +65,7 @@ impl Default for Message {
     fn default() -> Self {
         let created = OffsetDateTime::now_utc();
         Self {
-            id: cuid::cuid().unwrap_or_else(|_| created.to_string()),
+            id: cuid::slug().unwrap_or_else(|_| created.to_string()),
             activation: Default::default(),
             author: Default::default(),
             created,
