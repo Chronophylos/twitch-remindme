@@ -147,10 +147,11 @@ impl MessageStore {
             .unwrap_or_default()
     }
 
-    pub fn remove(&mut self, username: &str, message: &Message) {
+    pub fn remove(&mut self, username: &str, message: &Message) -> bool {
         self.data
             .get_mut(username)
-            .map(|messages| messages.remove(message));
+            .map(|messages| messages.remove(message))
+            .unwrap_or(false)
     }
 
     pub fn save(&self) -> Result<()> {
