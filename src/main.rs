@@ -25,16 +25,27 @@ async fn handle_cancel_command(
 ) -> Result<()> {
     if let Some(id) = parts.next() {
         info!("Removing message with id {}", id);
-        store.remove(&privmsg.sender.login, &Message::from_id(id.to_string()));
-        store.save().wrap_err("Error saving store")?;
-        client
-            .say_in_response(
-                privmsg.channel_login.clone(),
-                "Removed messsage".to_string(),
-                Some(privmsg.channel_id.clone()),
-            )
-            .await
-            .wrap_err("Failed to send reply")?;
+
+        if store.remove(&privmsg.sender.login, &Message::from_id(id.to_string())) {
+            store.save().wrap_err("Error saving store")?;
+            client
+                .say_in_response(
+                    privmsg.channel_login.clone(),
+                    "Removed messsage".to_string(),
+                    Some(privmsg.channel_id.clone()),
+                )
+                .await
+                .wrap_err("Failed to send reply")?;
+        } else {
+            client
+                .say_in_response(
+                    privmsg.channel_login.clone(),
+                    "You do not have a reminder to yourself with that id".to_string(),
+                    Some(privmsg.channel_id.clone()),
+                )
+                .await
+                .wrap_err("Failed to send reply")?;
+        }
     } else {
         client
             .say_in_response(
