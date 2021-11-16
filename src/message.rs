@@ -3,10 +3,7 @@ use std::{fmt::Display, hash::Hash};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
-use crate::{
-    format_duration,
-    message_parser::{MessageDefinition, Schedule},
-};
+use crate::{format_duration, message_parser::Schedule};
 
 #[derive(Debug, Copy, Clone, Deserialize, Serialize)]
 pub enum Activation {
@@ -95,10 +92,6 @@ impl Message {
             id,
             ..Default::default()
         }
-    }
-
-    pub fn from_definition(def: MessageDefinition, author: String) -> Self {
-        todo!()
     }
 
     pub fn id(&self) -> &str {

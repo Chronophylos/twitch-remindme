@@ -14,10 +14,10 @@ pub enum Schedule {
 
 #[derive(Debug, Clone)]
 pub struct MessageDefinition {
-    text: String,
-    created: OffsetDateTime,
-    schedule: Schedule,
-    recipients: Vec<String>,
+    pub text: String,
+    pub created: OffsetDateTime,
+    pub schedule: Schedule,
+    pub recipients: Vec<String>,
 }
 
 impl FromStr for MessageDefinition {

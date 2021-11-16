@@ -7,7 +7,10 @@ use std::{
 use eyre::{eyre, Context, Result};
 use time::OffsetDateTime;
 
-use crate::message::{Activation, Message};
+use crate::{
+    message::{Activation, Message},
+    message_parser::MessageDefinition,
+};
 
 #[derive(Debug, Clone)]
 pub struct MessageStore {
@@ -42,6 +45,16 @@ impl MessageStore {
                 set.insert(message);
                 set
             });
+    }
+
+    pub fn insert_from_definition(&mut self, author: String, def: MessageDefinition) {
+        let activation = def.schedule.into();
+        for recipient in def.recipients {
+            self.insert(
+                recipient,
+                Message::new(activation, author.clone(), def.text.clone()),
+            )
+        }
     }
 
     pub fn pop_pending(&mut self, username: &str) -> HashSet<Message> {
