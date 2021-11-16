@@ -1,5 +1,7 @@
 #![feature(hash_drain_filter, iter_intersperse)]
 
+mod message;
+mod message_parser;
 mod message_store;
 
 use std::{env, path::PathBuf, str::SplitWhitespace};
@@ -13,7 +15,10 @@ use twitch_irc::{
     ClientConfig, SecureTCPTransport, TwitchIRCClient,
 };
 
-use crate::message_store::{Activation, Message, MessageStore};
+use crate::{
+    message::{Activation, Message},
+    message_store::MessageStore,
+};
 
 const PREFIX: char = '~';
 

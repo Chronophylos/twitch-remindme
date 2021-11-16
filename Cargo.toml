@@ -9,8 +9,11 @@ edition = "2021"
 cuid = "1.2.0"
 eyre = "0.6.5"
 flume = "0.10.9"
+pest = "2.1.3"
+pest_derive = "2.1.0"
 ron = "0.7.0"
 serde = { version = "1.0.130", features = ["derive"] }
+thiserror = "1.0.30"
 time = { version = "0.3.4", features = ["serde"] }
 tokio = { version = "1.13.0", features = ["full"] }
 tracing = "0.1.29"
