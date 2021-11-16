@@ -6,7 +6,7 @@ use thiserror::Error;
 use time::{Duration, OffsetDateTime};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum Schedule {
+pub enum Schedule {
     None,
     Relative(Duration),
     Fixed(OffsetDateTime),

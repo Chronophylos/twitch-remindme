@@ -3,7 +3,10 @@ use std::{fmt::Display, hash::Hash};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
-use crate::format_duration;
+use crate::{
+    format_duration,
+    message_parser::{MessageDefinition, Schedule},
+};
 
 #[derive(Debug, Copy, Clone, Deserialize, Serialize)]
 pub enum Activation {
@@ -14,6 +17,16 @@ pub enum Activation {
 impl Default for Activation {
     fn default() -> Self {
         Activation::OnNextMessage
+    }
+}
+
+impl From<Schedule> for Activation {
+    fn from(schedule: Schedule) -> Self {
+        match schedule {
+            Schedule::None => Activation::OnNextMessage,
+            Schedule::Relative(duration) => Activation::Fixed(OffsetDateTime::now_utc() + duration),
+            Schedule::Fixed(datetime) => Activation::Fixed(datetime),
+        }
     }
 }
 
@@ -82,6 +95,10 @@ impl Message {
             id,
             ..Default::default()
         }
+    }
+
+    pub fn from_definition(def: MessageDefinition, author: String) -> Self {
+        todo!()
     }
 
     pub fn id(&self) -> &str {
