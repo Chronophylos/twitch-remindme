@@ -1,4 +1,5 @@
 #![feature(hash_drain_filter, iter_intersperse)]
+#![warn(dbg_macro)]
 
 mod message;
 mod message_parser;
