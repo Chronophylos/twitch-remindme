@@ -1,5 +1,5 @@
 #![feature(hash_drain_filter, iter_intersperse)]
-#![warn(dbg_macro)]
+#![warn(clippy::dbg_macro)]
 
 mod message;
 mod message_parser;
@@ -68,7 +68,7 @@ async fn handle_tell_command(
     privmsg: &PrivmsgMessage,
     parts: &mut SplitWhitespace<'_>,
 ) -> Result<()> {
-    let text = dbg!(dbg!(parts).intersperse(" ").collect::<String>());
+    let text = parts.intersperse(" ").collect::<String>();
 
     if text.is_empty() {
         return client
@@ -101,7 +101,7 @@ async fn handle_tell_command(
         }
     }
 
-    let messages = dbg!(dbg!(def).into_messages(privmsg.sender.login.clone()));
+    let messages = def.into_messages(privmsg.sender.login.clone());
 
     let response;
 
