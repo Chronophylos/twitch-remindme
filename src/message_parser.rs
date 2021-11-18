@@ -1,9 +1,10 @@
 use std::str::FromStr;
 
-use pest::{Parser, RuleType};
+use pest::Parser;
 use pest_derive::Parser;
-use thiserror::Error;
 use time::{Duration, OffsetDateTime};
+
+use crate::message::Message;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Schedule {
@@ -21,7 +22,7 @@ pub struct MessageDefinition {
 }
 
 impl FromStr for MessageDefinition {
-    type Err = Error<Rule>;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let message_pair = MessageDefinitionParser::parse(Rule::message, s)
@@ -81,19 +82,26 @@ impl FromStr for MessageDefinition {
     }
 }
 
+impl MessageDefinition {
+    pub fn into_messages(self, author: String) -> Vec<Message> {
+        let activation = self.schedule.into();
+        self.recipients
+            .into_iter()
+            .map(|recipient| Message::new(activation, author.clone(), recipient, self.text.clone()))
+            .collect()
+    }
+}
+
 #[derive(Parser)]
 #[grammar = "message.pest"]
 struct MessageDefinitionParser;
 
-#[derive(Debug, Error)]
-pub enum Error<R>
-where
-    R: RuleType,
-{
-    #[error("Failed to parse string as {rule}")]
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Failed to parse string as {rule:?}")]
     ParseRule {
-        rule: R,
-        source: pest::error::Error<R>,
+        rule: Rule,
+        source: pest::error::Error<Rule>,
     },
 
     #[error("String contains unparsed chars: {0:?}")]
@@ -105,6 +113,8 @@ where
 
 #[cfg(test)]
 mod test {
+    use time::OffsetDateTime;
+
     use crate::message_parser::{MessageDefinition, Schedule};
 
     #[test]
@@ -125,7 +135,7 @@ mod test {
 
     #[test]
     fn parse_with_cc_attribute() {
-        let def = "cc:\"other\" cc:foo recipient actual message"
+        let def = "recipient cc:\"other\" cc:foo actual message"
             .parse::<MessageDefinition>()
             .unwrap();
 
@@ -138,5 +148,23 @@ mod test {
         );
         assert_eq!("actual message", &def.text);
         assert_eq!(Schedule::None, def.schedule);
+    }
+
+    #[test]
+    fn message_definition_into_messages() {
+        let def = MessageDefinition {
+            text: "this is text".to_string(),
+            created: OffsetDateTime::now_utc(),
+            schedule: Schedule::None,
+            recipients: vec!["foo".to_string(), "bar".to_string()],
+        };
+
+        assert_eq!(
+            vec!["foo", "bar"],
+            def.into_messages("me".to_string())
+                .into_iter()
+                .map(|message| message.recipient().to_string())
+                .collect::<Vec<_>>()
+        );
     }
 }

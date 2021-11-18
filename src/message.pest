@@ -1,4 +1,4 @@
-message = { SOI ~ attributes? ~ recipient ~ text ~ EOI }
+message = { SOI ~ recipient ~ attributes? ~ text ~ EOI }
 text = @{ ANY* }
 attributes = { attribute* }
 attribute = ${ key ~ ":" ~ value }

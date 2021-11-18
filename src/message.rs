@@ -32,6 +32,7 @@ pub struct Message {
     id: String,
     activation: Activation,
     author: String,
+    recipient: String,
     created: OffsetDateTime,
     text: String,
 }
@@ -71,6 +72,7 @@ impl Default for Message {
             id: cuid::slug().unwrap_or_else(|_| created.to_string()),
             activation: Default::default(),
             author: Default::default(),
+            recipient: Default::default(),
             created,
             text: Default::default(),
         }
@@ -78,10 +80,11 @@ impl Default for Message {
 }
 
 impl Message {
-    pub fn new(activation: Activation, author: String, text: String) -> Self {
+    pub fn new(activation: Activation, author: String, recipient: String, text: String) -> Self {
         Self {
             activation,
             author,
+            recipient,
             text,
             ..Default::default()
         }
@@ -100,5 +103,9 @@ impl Message {
 
     pub fn activation(&self) -> &Activation {
         &self.activation
+    }
+
+    pub fn recipient(&self) -> &str {
+        &self.recipient
     }
 }

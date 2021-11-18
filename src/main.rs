@@ -15,10 +15,7 @@ use twitch_irc::{
     ClientConfig, SecureTCPTransport, TwitchIRCClient,
 };
 
-use crate::{
-    message::{Activation, Message},
-    message_store::MessageStore,
-};
+use crate::{message::Message, message_parser::MessageDefinition, message_store::MessageStore};
 
 const PREFIX: char = '~';
 
@@ -70,73 +67,90 @@ async fn handle_tell_command(
     privmsg: &PrivmsgMessage,
     parts: &mut SplitWhitespace<'_>,
 ) -> Result<()> {
-    if let Some(recipient) = parts.next() {
-        let real_recipient = if recipient == "me" {
-            privmsg.sender.login.clone()
-        } else {
-            recipient.to_lowercase()
-        };
+    let text = dbg!(dbg!(parts).intersperse(" ").collect::<String>());
 
-        let text = parts.intersperse(" ").collect::<String>();
-
-        if text.is_empty() {
-            client
-                .say_in_response(
-                    privmsg.channel_login.clone(),
-                    "Error: Message is empty".to_string(),
-                    Some(privmsg.channel_id.clone()),
-                )
-                .await
-                .wrap_err("Failed to send reply")
-        } else if text.len() > 300 {
-            client
-                .say_in_response(
-                    privmsg.channel_login.clone(),
-                    "Error: Message is too long (max 300)".to_string(),
-                    Some(privmsg.channel_id.clone()),
-                )
-                .await
-                .wrap_err("Failed to send reply")
-        } else {
-            let message = Message::new(
-                Activation::OnNextMessage,
-                privmsg.sender.login.to_string(),
-                text,
-            );
-
-            let respone_text = if recipient == "me" || recipient == privmsg.sender.login {
-                format!("I'll remind you the next time you write [{}]", message.id())
-            } else {
-                format!(
-                    "I'll remind {} the next time they write [{}]",
-                    recipient,
-                    message.id()
-                )
-            };
-
-            info!("Storing message with id {}", message.id());
-            store.insert(real_recipient, message);
-            store.save().wrap_err("Error saving store")?;
-
-            client
-                .say_in_response(
-                    privmsg.channel_login.clone(),
-                    respone_text,
-                    Some(privmsg.channel_id.clone()),
-                )
-                .await
-                .wrap_err("Failed to send reply")
-        }
-    } else {
-        client
+    if text.is_empty() {
+        return client
             .say_in_response(
                 privmsg.channel_login.clone(),
-                "Error: Missing recipient".to_string(),
+                "Error: Message is empty".to_string(),
                 Some(privmsg.channel_id.clone()),
             )
             .await
-            .wrap_err("Failed to send reply")
+            .wrap_err("Failed to send reply");
+    } else if text.len() > 300 {
+        return client
+            .say_in_response(
+                privmsg.channel_login.clone(),
+                "Error: Message is too long (max 300)".to_string(),
+                Some(privmsg.channel_id.clone()),
+            )
+            .await
+            .wrap_err("Failed to send reply");
     }
+
+    let mut def = text
+        .parse::<MessageDefinition>()
+        .wrap_err("Failed to parse message")?;
+
+    for recipient in def.recipients.iter_mut() {
+        if recipient == "me" {
+            recipient.clear();
+            recipient.push_str(&privmsg.sender.login);
+        }
+    }
+
+    let messages = dbg!(dbg!(def).into_messages(privmsg.sender.login.clone()));
+
+    let response;
+
+    if messages.len() == 1 {
+        let message = messages.first().unwrap();
+
+        if message.recipient() == privmsg.sender.login {
+            response = format!(
+                "I'll remind you the next time you type in chat [{}]",
+                message.id()
+            )
+        } else {
+            response = format!(
+                "I'll remind {} when they next type in chat [{}]",
+                message.recipient(),
+                message.id()
+            )
+        }
+    } else {
+        response = format!(
+            "I'll remind {} next time they type in chat",
+            messages
+                .iter()
+                .map(|message| format!("{} [{}]", message.recipient(), message.id()))
+                .intersperse(", ".to_string())
+                .collect::<String>()
+        )
+    }
+
+    let ids = messages
+        .iter()
+        .map(|message| message.id())
+        .intersperse(", ")
+        .collect::<String>();
+    info!("Inserting messages with ids: {}", ids);
+
+    for message in messages {
+        store.insert(message);
+    }
+
+    store.save().wrap_err("Failed to save store")?;
+
+    client
+        .say_in_response(
+            privmsg.channel_login.clone(),
+            response,
+            Some(privmsg.channel_id.clone()),
+        )
+        .await
+        .wrap_err("Failed to send reply")
 }
 
 async fn handle_commands(
