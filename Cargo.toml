@@ -1,6 +1,6 @@
 [package]
 name = "twitch-remindme"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -18,4 +18,7 @@ time = { version = "0.3.4", features = ["serde"] }
 tokio = { version = "1.13.0", features = ["full"] }
 tracing = "0.1.29"
 tracing-subscriber = { version = "0.3.1", features = ["env-filter"] }
-twitch-irc = { version = "3.0.1", features = ["transport-tcp", "transport-tcp-rustls-webpki-roots"], default-features = false }
+twitch-irc = { version = "3.0.1", features = [
+    "transport-tcp",
+    "transport-tcp-rustls-webpki-roots",
+], default-features = false }
