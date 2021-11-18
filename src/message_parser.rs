@@ -135,7 +135,7 @@ mod test {
 
     #[test]
     fn parse_with_cc_attribute() {
-        let def = "recipient cc:\"other\" cc:foo actual message"
+        let def = "cc:\"other\" cc:foo recipient actual message"
             .parse::<MessageDefinition>()
             .unwrap();
 
