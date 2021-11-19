@@ -61,12 +61,12 @@ impl FromStr for MessageDefinition {
                         };
 
                         match key {
-                            "cc" => def.recipients.push(value.to_string()),
+                            "cc" => def.recipients.push(value.to_lowercase()),
                             _ => return Err(Error::UnknownAttributeKey(key.to_string())),
                         }
                     }
                 }
-                Rule::recipient => def.recipients.push(pair.as_span().as_str().to_string()),
+                Rule::recipient => def.recipients.push(pair.as_span().as_str().to_lowercase()),
                 Rule::text => def.text = pair.as_span().as_str().to_string(),
                 Rule::EOI => {
                     let s = pair.as_span().as_str();
@@ -136,6 +136,23 @@ mod test {
     #[test]
     fn parse_with_cc_attribute() {
         let def = "cc:\"other\" cc:foo recipient actual message"
+            .parse::<MessageDefinition>()
+            .unwrap();
+
+        assert_eq!(
+            vec!["other", "foo", "recipient"]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
+            def.recipients
+        );
+        assert_eq!("actual message", &def.text);
+        assert_eq!(Schedule::None, def.schedule);
+    }
+
+    #[test]
+    fn test_uppercase() {
+        let def = "cc:\"other\" cc:Foo recIpient actual message"
             .parse::<MessageDefinition>()
             .unwrap();
 
