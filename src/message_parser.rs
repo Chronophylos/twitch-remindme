@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{collections::HashSet, str::FromStr};
 
 use pest::Parser;
 use pest_derive::Parser;
@@ -18,7 +18,7 @@ pub struct MessageDefinition {
     pub text: String,
     pub created: OffsetDateTime,
     pub schedule: Schedule,
-    pub recipients: Vec<String>,
+    pub recipients: HashSet<String>,
 }
 
 impl FromStr for MessageDefinition {
@@ -37,7 +37,7 @@ impl FromStr for MessageDefinition {
             text: String::new(),
             created: OffsetDateTime::now_utc(),
             schedule: Schedule::None,
-            recipients: Vec::new(),
+            recipients: HashSet::new(),
         };
 
         for pair in message_pair.into_inner() {
@@ -61,12 +61,17 @@ impl FromStr for MessageDefinition {
                         };
 
                         match key {
-                            "cc" => def.recipients.push(value.to_lowercase()),
+                            "cc" => {
+                                def.recipients.insert(value.to_lowercase());
+                            }
                             _ => return Err(Error::UnknownAttributeKey(key.to_string())),
                         }
                     }
                 }
-                Rule::recipient => def.recipients.push(pair.as_span().as_str().to_lowercase()),
+                Rule::recipient => {
+                    def.recipients
+                        .insert(pair.as_span().as_str().to_lowercase());
+                }
                 Rule::text => def.text = pair.as_span().as_str().to_string(),
                 Rule::EOI => {
                     let s = pair.as_span().as_str();
@@ -113,6 +118,8 @@ pub enum Error {
 
 #[cfg(test)]
 mod test {
+    use std::collections::HashSet;
+
     use time::OffsetDateTime;
 
     use crate::message_parser::{MessageDefinition, Schedule};
@@ -128,7 +135,7 @@ mod test {
             .parse::<MessageDefinition>()
             .unwrap();
 
-        assert_eq!(vec![String::from("recipient")], def.recipients);
+        assert_eq!(HashSet::from([String::from("recipient")]), def.recipients);
         assert_eq!("actual message", &def.text);
         assert_eq!(Schedule::None, def.schedule);
     }
@@ -140,10 +147,10 @@ mod test {
             .unwrap();
 
         assert_eq!(
-            vec!["other", "foo", "recipient"]
+            ["other", "foo", "recipient"]
                 .into_iter()
                 .map(|s| s.to_string())
-                .collect::<Vec<_>>(),
+                .collect::<HashSet<_>>(),
             def.recipients
         );
         assert_eq!("actual message", &def.text);
@@ -157,10 +164,10 @@ mod test {
             .unwrap();
 
         assert_eq!(
-            vec!["other", "foo", "recipient"]
+            ["other", "foo", "recipient"]
                 .into_iter()
                 .map(|s| s.to_string())
-                .collect::<Vec<_>>(),
+                .collect::<HashSet<_>>(),
             def.recipients
         );
         assert_eq!("actual message", &def.text);
@@ -173,7 +180,7 @@ mod test {
             text: "this is text".to_string(),
             created: OffsetDateTime::now_utc(),
             schedule: Schedule::None,
-            recipients: vec!["foo".to_string(), "bar".to_string()],
+            recipients: ["foo".to_string(), "bar".to_string()].into(),
         };
 
         assert_eq!(

@@ -94,11 +94,8 @@ async fn handle_tell_command(
         .parse::<MessageDefinition>()
         .wrap_err("Failed to parse message")?;
 
-    for recipient in def.recipients.iter_mut() {
-        if recipient == "me" {
-            recipient.clear();
-            recipient.push_str(&privmsg.sender.login);
-        }
+    if def.recipients.remove("me") {
+        def.recipients.insert(privmsg.sender.login.clone());
     }
 
     let messages = def.into_messages(privmsg.sender.login.clone());
