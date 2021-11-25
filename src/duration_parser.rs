@@ -6,10 +6,10 @@ use time::Duration;
 
 macro_rules! handle_rule {
     ($duration:ident, $pair:ident, $( $rule:ident ),+) => {
-        match dbg!($pair.as_rule()) {
+        match $pair.as_rule() {
             $(
                 Rule::$rule => {
-                    $duration.$rule += dbg!($pair.into_inner()).next().unwrap().as_str().parse::<u32>()?;
+                    $duration.$rule += $pair.into_inner().next().unwrap().as_str().parse::<u32>()?;
                 }
             ,)+
             Rule::EOI => {
