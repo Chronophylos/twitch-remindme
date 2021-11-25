@@ -213,9 +213,11 @@ async fn queue_message(mut store: MessageStore, client: Client, message: Message
             let now = OffsetDateTime::now_utc();
             let duration = *deadline - now;
 
-            debug!("Queuing message {}", message.id());
+            if duration.is_positive() {
+                debug!("Queuing message {}", message.id());
 
-            sleep(duration.try_into().unwrap()).await;
+                sleep(duration.try_into().unwrap()).await;
+            }
 
             info!("Replaying timed message: {}", message.id());
 
