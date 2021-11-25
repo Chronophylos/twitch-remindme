@@ -229,9 +229,10 @@ async fn queue_message(mut store: MessageStore, client: Client, message: Message
                     ),
                 )
                 .await
-                .unwrap();
+                .expect("Failed to replay message in chat");
 
             store.remove(message.recipient(), &message);
+            store.save().expect("Failed to save store")
         }
     });
 }

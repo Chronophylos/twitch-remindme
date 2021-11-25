@@ -106,6 +106,5 @@ fn write_store(file: File, data: &[&Message]) -> Result<(), ron::Error> {
 
 #[cfg(feature = "pretty_store")]
 fn write_store(file: File, data: &[&Message]) -> Result<(), ron::Error> {
-    use ron::ser::PrettyConfig;
-    ron::ser::to_writer_pretty(file, &data, PrettyConfig::default())
+    ron::ser::to_writer_pretty(file, &data, ron::ser::PrettyConfig::default())
 }
