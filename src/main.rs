@@ -214,6 +214,8 @@ async fn queue_message(mut store: MessageStore, client: Client, message: Message
             let duration = *deadline - now;
             sleep(duration.try_into().unwrap()).await;
 
+            info!("Replaying timed message: {}", message.id());
+
             client
                 .say(
                     message.channel().to_string(),
