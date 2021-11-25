@@ -93,11 +93,19 @@ impl FromStr for MessageDefinition {
 }
 
 impl MessageDefinition {
-    pub fn into_messages(self, author: String) -> Vec<Message> {
+    pub fn into_messages(self, author: &str, channel: &str) -> Vec<Message> {
         let activation = self.schedule.into();
         self.recipients
             .into_iter()
-            .map(|recipient| Message::new(activation, author.clone(), recipient, self.text.clone()))
+            .map(|recipient| {
+                Message::new(
+                    activation,
+                    author.to_string(),
+                    channel.to_string(),
+                    recipient,
+                    self.text.clone(),
+                )
+            })
             .collect()
     }
 }
@@ -193,7 +201,7 @@ mod test {
 
         assert_eq!(
             vec!["foo", "bar"],
-            def.into_messages("me".to_string())
+            def.into_messages("me", "channel")
                 .into_iter()
                 .map(|message| message.recipient().to_string())
                 .collect::<Vec<_>>()

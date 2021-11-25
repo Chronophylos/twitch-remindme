@@ -5,7 +5,7 @@ use time::OffsetDateTime;
 
 use crate::{format_duration, message_parser::Schedule};
 
-#[derive(Debug, Copy, Clone, Deserialize, Serialize)]
+#[derive(Debug, Copy, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub enum Activation {
     OnNextMessage,
     Fixed(OffsetDateTime),
@@ -34,6 +34,7 @@ pub struct Message {
     author: String,
     recipient: String,
     created: OffsetDateTime,
+    channel: String,
     text: String,
 }
 
@@ -74,16 +75,24 @@ impl Default for Message {
             author: Default::default(),
             recipient: Default::default(),
             created,
+            channel: Default::default(),
             text: Default::default(),
         }
     }
 }
 
 impl Message {
-    pub fn new(activation: Activation, author: String, recipient: String, text: String) -> Self {
+    pub fn new(
+        activation: Activation,
+        author: String,
+        channel: String,
+        recipient: String,
+        text: String,
+    ) -> Self {
         Self {
             activation,
             author,
+            channel,
             recipient,
             text,
             ..Default::default()
@@ -107,5 +116,9 @@ impl Message {
 
     pub fn recipient(&self) -> &str {
         &self.recipient
+    }
+
+    pub fn channel(&self) -> &str {
+        &self.channel
     }
 }

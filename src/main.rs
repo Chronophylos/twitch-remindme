@@ -9,7 +9,8 @@ mod message_store;
 use std::{env, path::PathBuf, str::SplitWhitespace};
 
 use eyre::{eyre, Context, Result};
-use time::Duration;
+use time::{Duration, OffsetDateTime};
+use tokio::time::sleep;
 use tracing::{error, info, trace};
 use twitch_irc::{
     login::StaticLoginCredentials,
@@ -17,13 +18,19 @@ use twitch_irc::{
     ClientConfig, SecureTCPTransport, TwitchIRCClient,
 };
 
-use crate::{message::Message, message_parser::MessageDefinition, message_store::MessageStore};
+use crate::{
+    message::{Activation, Message},
+    message_parser::MessageDefinition,
+    message_store::MessageStore,
+};
+
+type Client = TwitchIRCClient<SecureTCPTransport, StaticLoginCredentials>;
 
 const PREFIX: char = '~';
 
 async fn handle_cancel_command(
     store: &mut MessageStore,
-    client: &TwitchIRCClient<SecureTCPTransport, StaticLoginCredentials>,
+    client: &Client,
     privmsg: &PrivmsgMessage,
     parts: &mut SplitWhitespace<'_>,
 ) -> Result<()> {
@@ -65,7 +72,7 @@ async fn handle_cancel_command(
 }
 async fn handle_tell_command(
     store: &mut MessageStore,
-    client: &TwitchIRCClient<SecureTCPTransport, StaticLoginCredentials>,
+    client: &Client,
     privmsg: &PrivmsgMessage,
     parts: &mut SplitWhitespace<'_>,
 ) -> Result<()> {
@@ -99,10 +106,11 @@ async fn handle_tell_command(
         def.recipients.insert(privmsg.sender.login.clone());
     }
 
-    let messages = def.into_messages(privmsg.sender.login.clone());
+    let messages = def.into_messages(&privmsg.sender.login, &privmsg.channel_login);
 
     let response;
 
+    // TODO: adapt for scheduled messages
     if messages.len() == 1 {
         let message = messages.first().unwrap();
 
@@ -137,6 +145,10 @@ async fn handle_tell_command(
     info!("Inserting messages with ids: {}", ids);
 
     for message in messages {
+        if message.activation() != &Activation::OnNextMessage {
+            // queue scheduled messages
+            queue_message(store.clone(), client.clone(), message.clone()).await;
+        }
         store.insert(message);
     }
 
@@ -154,7 +166,7 @@ async fn handle_tell_command(
 
 async fn handle_commands(
     store: &mut MessageStore,
-    client: &TwitchIRCClient<SecureTCPTransport, StaticLoginCredentials>,
+    client: &Client,
     privmsg: &PrivmsgMessage,
 ) -> Result<()> {
     let mut parts = privmsg.message_text.split_whitespace();
@@ -195,9 +207,33 @@ async fn handle_commands(
     Ok(())
 }
 
+async fn queue_message(mut store: MessageStore, client: Client, message: Message) {
+    tokio::spawn(async move {
+        if let Activation::Fixed(deadline) = message.activation() {
+            let now = OffsetDateTime::now_utc();
+            let duration = *deadline - now;
+            sleep(duration.try_into().unwrap()).await;
+
+            client
+                .say(
+                    message.channel().to_string(),
+                    format!(
+                        "@{} one timed message for you {}",
+                        message.recipient(),
+                        message
+                    ),
+                )
+                .await
+                .unwrap();
+
+            store.remove(message.recipient(), &message);
+        }
+    });
+}
+
 async fn handle_privmsg(
     store: &mut MessageStore,
-    client: &TwitchIRCClient<SecureTCPTransport, StaticLoginCredentials>,
+    client: &Client,
     privmsg: &PrivmsgMessage,
 ) -> Result<()> {
     let messages = store.pop_pending(&privmsg.sender.login);
@@ -253,7 +289,7 @@ async fn handle_privmsg(
 
 async fn handle_server_message(
     store: &mut MessageStore,
-    client: &TwitchIRCClient<SecureTCPTransport, StaticLoginCredentials>,
+    client: &Client,
     login: &str,
     message: ServerMessage,
 ) -> Result<()> {
@@ -294,17 +330,17 @@ pub async fn main() -> Result<()> {
         login.clone(),
         Some(env::var("TWITCH_TOKEN").unwrap()),
     ));
-    let (mut incoming_messages, client) =
-        TwitchIRCClient::<SecureTCPTransport, StaticLoginCredentials>::new(config);
+    let (mut incoming_messages, client) = Client::new(config);
+
+    let store = MessageStore::from_path(PathBuf::from("messages.ron"))
+        .wrap_err("Failed to open storage")?;
 
     // first thing you should do: start consuming incoming messages,
     // otherwise they will back up.
     let handle = tokio::spawn({
         let client = client.clone();
+        let mut store = store.clone();
         async move {
-            let mut store = MessageStore::from_path(PathBuf::from("messages.ron"))
-                .wrap_err("Failed to open storage")?;
-
             while let Some(message) = incoming_messages.recv().await {
                 if let Err(err) = handle_server_message(&mut store, &client, &login, message)
                     .await
@@ -325,6 +361,11 @@ pub async fn main() -> Result<()> {
     {
         info!("Joining {}", channel);
         client.join(channel.to_string());
+    }
+
+    // queue messages
+    for message in store.get_all() {
+        queue_message(store.clone(), client.clone(), message.to_owned()).await;
     }
 
     handle.await.wrap_err("Failed to run bot")?

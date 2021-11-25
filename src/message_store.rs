@@ -76,6 +76,10 @@ impl MessageStore {
             .unwrap_or_default()
     }
 
+    pub fn get_all(&self) -> HashSet<&Message> {
+        self.data.values().flatten().collect()
+    }
+
     pub fn remove(&mut self, username: &str, message: &Message) -> bool {
         self.data
             .get_mut(username)
