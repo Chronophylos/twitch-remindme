@@ -8,10 +8,10 @@ mod message_store;
 
 use std::{env, path::PathBuf, str::SplitWhitespace};
 
-use eyre::{eyre, Context, Result};
+use eyre::{ensure, eyre, Context, Result};
 use time::{Duration, OffsetDateTime};
 use tokio::time::sleep;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, instrument, trace, trace_span, Instrument};
 use twitch_irc::{
     login::StaticLoginCredentials,
     message::{PrivmsgMessage, ServerMessage},
@@ -147,7 +147,7 @@ async fn handle_tell_command(
     for message in messages {
         if message.activation() != &Activation::OnNextMessage {
             // queue scheduled messages
-            queue_message(store.clone(), client.clone(), message.clone()).await;
+            spawn_queue_message_task(store.clone(), client.clone(), message.clone()).await;
         }
         store.insert(message);
     }
@@ -206,34 +206,52 @@ async fn handle_commands(
     Ok(())
 }
 
-async fn queue_message(mut store: MessageStore, client: Client, message: Message) {
+#[instrument(skip(store, client, message), fields(id = message.id()))]
+async fn queue_message(mut store: MessageStore, client: Client, message: Message) -> Result<()> {
+    if let Activation::Fixed(deadline) = message.activation() {
+        let now = OffsetDateTime::now_utc();
+        let duration = *deadline - now;
+
+        if duration.is_positive() {
+            debug!("Queuing message");
+
+            sleep(duration.try_into().wrap_err("Failed to convert duration")?).await;
+        }
+
+        info!("Replaying timed message");
+
+        client
+            .say(
+                message.channel().to_string(),
+                format!(
+                    "@{} one timed message for you {}",
+                    message.recipient(),
+                    message
+                ),
+            )
+            .await
+            .wrap_err("Failed to replay message in chat")?;
+
+        ensure!(
+            store.remove(message.recipient(), &message),
+            "Failed to remove message"
+        );
+
+        store.save().wrap_err("Failed to save store")?;
+    }
+
+    Ok(())
+}
+
+async fn spawn_queue_message_task(store: MessageStore, client: Client, message: Message) {
+    let id = message.id().to_string();
+
     tokio::spawn(async move {
-        if let Activation::Fixed(deadline) = message.activation() {
-            let now = OffsetDateTime::now_utc();
-            let duration = *deadline - now;
-
-            if duration.is_positive() {
-                debug!("Queuing message {}", message.id());
-
-                sleep(duration.try_into().unwrap()).await;
-            }
-
-            info!("Replaying timed message: {}", message.id());
-
-            client
-                .say(
-                    message.channel().to_string(),
-                    format!(
-                        "@{} one timed message for you {}",
-                        message.recipient(),
-                        message
-                    ),
-                )
-                .await
-                .expect("Failed to replay message in chat");
-
-            store.remove(message.recipient(), &message);
-            store.save().expect("Failed to save store")
+        if let Err(err) = queue_message(store, client, message)
+            .await
+            .wrap_err_with(|| format!("Failed to handle scheduled message {}", id))
+        {
+            error!("{:?}", err);
         }
     });
 }
@@ -318,7 +336,7 @@ async fn handle_server_message(
             }
         }
         ServerMessage::Reconnect(_) => {
-            todo!()
+            todo!("Handle reconnect messages")
         }
         _ => {}
     }
@@ -342,22 +360,25 @@ pub async fn main() -> Result<()> {
 
     // first thing you should do: start consuming incoming messages,
     // otherwise they will back up.
-    let handle = tokio::spawn({
-        let client = client.clone();
-        let mut store = store.clone();
-        async move {
-            while let Some(message) = incoming_messages.recv().await {
-                if let Err(err) = handle_server_message(&mut store, &client, &login, message)
-                    .await
-                    .wrap_err("Failed to handle server message")
-                {
-                    error!("{:?}", err)
+    let handle = tokio::spawn(
+        {
+            let client = client.clone();
+            let mut store = store.clone();
+            async move {
+                while let Some(message) = incoming_messages.recv().await {
+                    if let Err(err) = handle_server_message(&mut store, &client, &login, message)
+                        .await
+                        .wrap_err("Failed to handle server message")
+                    {
+                        error!("{:?}", err)
+                    }
                 }
-            }
 
-            Ok(())
+                Ok(())
+            }
         }
-    });
+        .instrument(trace_span!("irc_message_handler")),
+    );
 
     // join channels
     for channel in env::var("TWITCH_CHANNELS")
@@ -370,7 +391,7 @@ pub async fn main() -> Result<()> {
 
     // queue messages
     for message in store.get_all() {
-        queue_message(store.clone(), client.clone(), message.to_owned()).await;
+        spawn_queue_message_task(store.clone(), client.clone(), message.to_owned()).await;
     }
 
     handle.await.wrap_err("Failed to run bot")?
