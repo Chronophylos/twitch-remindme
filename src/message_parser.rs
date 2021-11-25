@@ -128,7 +128,7 @@ pub enum Error {
     #[error("Unknown attribute key: {0:?}")]
     UnknownAttributeKey(String),
 
-    #[error("Failed to parse duration: {0}")]
+    #[error("Failed to parse duration")]
     ParseDuration(#[from] crate::duration_parser::Error),
 }
 

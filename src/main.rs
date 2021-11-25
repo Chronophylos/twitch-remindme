@@ -196,8 +196,7 @@ async fn handle_commands(
                     Err(eyre!("Unknown command"))
                     // error unknown command
                 }
-            }
-            .wrap_err("Failed to match command")?
+            }?
         }
         _ => {
             // message does not start with the prefix
