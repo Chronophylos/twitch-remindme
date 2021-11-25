@@ -94,8 +94,18 @@ impl MessageStore {
             .values()
             .flat_map(|set| set.iter())
             .collect::<Vec<&Message>>();
-        ron::ser::to_writer(file, &data).wrap_err("Failed to serialize storage")?;
 
-        Ok(())
+        write_store(file, &data).wrap_err("Failed to write storeage")
     }
+}
+
+#[cfg(not(feature = "pretty_store"))]
+fn write_store(file: File, data: &[&Message]) -> Result<(), ron::Error> {
+    ron::ser::to_writer(file, &data)
+}
+
+#[cfg(feature = "pretty_store")]
+fn write_store(file: File, data: &[&Message]) -> Result<(), ron::Error> {
+    use ron::ser::PrettyConfig;
+    ron::ser::to_writer_pretty(file, &data, PrettyConfig::default())
 }

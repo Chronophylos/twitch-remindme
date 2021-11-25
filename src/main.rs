@@ -11,7 +11,7 @@ use std::{env, path::PathBuf, str::SplitWhitespace};
 use eyre::{eyre, Context, Result};
 use time::{Duration, OffsetDateTime};
 use tokio::time::sleep;
-use tracing::{error, info, trace};
+use tracing::{debug, error, info, trace};
 use twitch_irc::{
     login::StaticLoginCredentials,
     message::{PrivmsgMessage, ServerMessage},
@@ -212,6 +212,9 @@ async fn queue_message(mut store: MessageStore, client: Client, message: Message
         if let Activation::Fixed(deadline) = message.activation() {
             let now = OffsetDateTime::now_utc();
             let duration = *deadline - now;
+
+            debug!("Queuing message {}", message.id());
+
             sleep(duration.try_into().unwrap()).await;
 
             info!("Replaying timed message: {}", message.id());
@@ -325,13 +328,11 @@ async fn handle_server_message(
 pub async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
-    let login = env::var("TWITCH_LOGIN").unwrap();
+    let login = env::var("TWITCH_LOGIN").wrap_err("Failed to get TWITCH_LOGIN")?;
+    let token = env::var("TWITCH_TOKEN").wrap_err("Failed to get TWITCH_TOKEN")?;
 
     // default configuration is to join chat as anonymous.
-    let config = ClientConfig::new_simple(StaticLoginCredentials::new(
-        login.clone(),
-        Some(env::var("TWITCH_TOKEN").unwrap()),
-    ));
+    let config = ClientConfig::new_simple(StaticLoginCredentials::new(login.clone(), Some(token)));
     let (mut incoming_messages, client) = Client::new(config);
 
     let store = MessageStore::from_path(PathBuf::from("messages.ron"))
