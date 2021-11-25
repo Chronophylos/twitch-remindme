@@ -912,7 +912,7 @@ dependencies = [
 
 [[package]]
 name = "twitch-remindme"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "cuid",
  "eyre",
