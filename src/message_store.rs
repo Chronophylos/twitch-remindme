@@ -5,7 +5,6 @@ use std::{
 };
 
 use eyre::{eyre, Context, Result};
-use time::OffsetDateTime;
 
 use crate::message::{Activation, Message};
 
