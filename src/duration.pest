@@ -1,0 +1,10 @@
+duration = { SOI ~ (years | days | hours | minutes | seconds)+ ~ EOI }
+years = { count ~ ("y" | "year" | "years") }
+weeks = { count ~ ("w" | "week" | "weeks") }
+months = { count ~ ("M" | "month" | "months") }
+days = { count ~ ("d" | "day" | "days") }
+hours = { count ~ ("h" | "hour" | "hours") }
+minutes = { count ~ ("m" | "minute" | "minutes") }
+seconds = { count ~ ("s" | "second" | "seconds") }
+count = { ASCII_DIGIT+ }
+WHITESPACE = _{ " " }

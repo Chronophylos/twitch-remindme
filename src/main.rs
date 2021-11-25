@@ -1,6 +1,7 @@
 #![feature(hash_drain_filter, iter_intersperse)]
 #![warn(clippy::dbg_macro)]
 
+mod duration_parser;
 mod message;
 mod message_parser;
 mod message_store;

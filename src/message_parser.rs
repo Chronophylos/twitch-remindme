@@ -4,7 +4,7 @@ use pest::Parser;
 use pest_derive::Parser;
 use time::{Duration, OffsetDateTime};
 
-use crate::message::Message;
+use crate::{duration_parser::IntermediateDuration, message::Message};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Schedule {
@@ -64,6 +64,11 @@ impl FromStr for MessageDefinition {
                             "cc" => {
                                 def.recipients.insert(value.to_lowercase());
                             }
+                            "in" => {
+                                def.schedule = Schedule::Relative(
+                                    value.to_lowercase().parse::<IntermediateDuration>()?.into(),
+                                )
+                            }
                             _ => return Err(Error::UnknownAttributeKey(key.to_string())),
                         }
                     }
@@ -114,6 +119,9 @@ pub enum Error {
 
     #[error("Unknown attribute key: {0:?}")]
     UnknownAttributeKey(String),
+
+    #[error("Failed to parse duration: {0}")]
+    ParseDuration(#[from] crate::duration_parser::Error),
 }
 
 #[cfg(test)]
