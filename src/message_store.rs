@@ -60,16 +60,15 @@ impl MessageStore {
             });
     }
 
+    /// Get all message that have not been sent yet. This does not include timedout scheduled
+    /// messages.
     pub fn pop_pending(&mut self, username: &str) -> HashSet<Message> {
-        let now = OffsetDateTime::now_utc();
-
         self.data
             .get_mut(username)
             .map(|messages| {
                 messages
-                    .drain_filter(|message| match message.activation() {
-                        Activation::OnNextMessage => true,
-                        Activation::Fixed(then) => &now >= then,
+                    .drain_filter(|message| {
+                        matches!(message.activation(), Activation::OnNextMessage)
                     })
                     .collect::<HashSet<_>>()
             })
