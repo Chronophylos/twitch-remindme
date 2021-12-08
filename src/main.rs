@@ -87,15 +87,6 @@ async fn handle_tell_command(
             )
             .await
             .wrap_err("Failed to send reply");
-    } else if text.len() > 300 {
-        return client
-            .say_in_response(
-                privmsg.channel_login.clone(),
-                "Error: Message is too long (max 300)".to_string(),
-                Some(privmsg.channel_id.clone()),
-            )
-            .await
-            .wrap_err("Failed to send reply");
     }
 
     let mut def = text
