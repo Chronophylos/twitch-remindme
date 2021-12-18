@@ -78,11 +78,11 @@ impl MessageStore {
         self.data.values().flatten().collect()
     }
 
-    pub fn remove(&mut self, username: &str, message: &Message) -> bool {
+    pub fn remove(&mut self, message: &Message) -> bool {
         self.data
-            .get_mut(username)
+            .values_mut()
             .map(|messages| messages.remove(message))
-            .unwrap_or(false)
+            .any(|x| x)
     }
 
     pub fn save(&self) -> Result<()> {

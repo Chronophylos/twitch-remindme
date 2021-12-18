@@ -37,7 +37,7 @@ async fn handle_cancel_command(
     if let Some(id) = parts.next() {
         info!("Removing message with id {}", id);
 
-        if store.remove(&privmsg.sender.login, &Message::from_id(id.to_string())) {
+        if store.remove(&Message::from_id(id.to_string())) {
             store.save().wrap_err("Error saving store")?;
             client
                 .say_in_response(
@@ -51,7 +51,7 @@ async fn handle_cancel_command(
             client
                 .say_in_response(
                     privmsg.channel_login.clone(),
-                    "You do not have a reminder to yourself with that id".to_string(),
+                    "You do not have access to a reminder with that id".to_string(),
                     Some(privmsg.channel_id.clone()),
                 )
                 .await
@@ -155,6 +155,20 @@ async fn handle_tell_command(
         .wrap_err("Failed to send reply")
 }
 
+async fn handle_bot_command(client: &Client, privmsg: &PrivmsgMessage) -> Result<()> {
+    client
+        .say_in_response(
+            privmsg.channel_login.clone(),
+            format!(
+                "I let you leave messages for others. Written by @Chronophylos in Rust. Version {}",
+                env!("CARGO_PKG_VERSION")
+            ),
+            Some(privmsg.channel_id.clone()),
+        )
+        .await
+        .wrap_err("Failed to send reply")
+}
+
 async fn handle_commands(
     store: &mut MessageStore,
     client: &Client,
@@ -163,6 +177,9 @@ async fn handle_commands(
     let mut parts = privmsg.message_text.split_whitespace();
 
     match parts.next() {
+        Some("!bot") => handle_bot_command(client, privmsg)
+            .await
+            .wrap_err("Failed to handle bot command")?,
         Some(word) if word.starts_with(PREFIX) => {
             let command = word
                 .strip_prefix(PREFIX)
@@ -174,15 +191,10 @@ async fn handle_commands(
                     .wrap_err("Failed to handle tell command"),
                 "cancel" => handle_cancel_command(store, client, privmsg, &mut parts)
                     .await
-                    .wrap_err("Failed to handle tell command"),
-                "bot" => client
-                    .say_in_response(
-                        privmsg.channel_login.clone(),
-                        format!("I let you leave messages for others. Written by @Chronophylos in Rust. Version {}", env!("CARGO_PKG_VERSION")),
-                        Some(privmsg.channel_id.clone()),
-                    )
+                    .wrap_err("Failed to handle cancel command"),
+                "bot" => handle_bot_command(client, privmsg)
                     .await
-                    .wrap_err("Failed to send reply"),
+                    .wrap_err("Failed to handle bot command"),
                 _ => {
                     Err(eyre!("Unknown command"))
                     // error unknown command
@@ -223,10 +235,7 @@ async fn queue_message(mut store: MessageStore, client: Client, message: Message
             .await
             .wrap_err("Failed to replay message in chat")?;
 
-        ensure!(
-            store.remove(message.recipient(), &message),
-            "Failed to remove message"
-        );
+        ensure!(store.remove(&message), "Failed to remove message");
 
         store.save().wrap_err("Failed to save store")?;
     }
@@ -326,9 +335,7 @@ async fn handle_server_message(
                 return Err(eyre!("Failed to authenticate"));
             }
         }
-        ServerMessage::Reconnect(_) => {
-            todo!("Handle reconnect messages")
-        }
+        ServerMessage::Reconnect(_) => client.connect().await,
         _ => {}
     }
 
